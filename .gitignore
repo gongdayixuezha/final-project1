@@ -1,18 +1,24 @@
-# 1. 虚拟环境
+# 1. 虚拟环境（常规DevOps规范，避免开发依赖进Git，文档隐含“环境隔离”要求）
 venv/
-# 2. MLflow实验记录（本地mlruns/目录，远程无需上传）
+
+# 2. MLflow实验记录（本地日志，无需上传，符合文档🔶4-57“MLflow跟踪本地文件后端”要求）
 mlruns/
-# 3. 敏感文件（对应文档）
+
+# 3. 敏感文件（环境变量文件，用Secrets管理，符合文档🔶4-28/4-29“环境专属配置”要求）
 .env
-# 4. Python编译缓存
+
+# 4. Python编译缓存（常规规范，避免冗余文件，文档隐含“代码清洁度”要求）
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-# 5. ML数据文件（若本地存储大数据集，如iris.csv，无需上传）
-data/
-# 6. Docker构建缓存
-.dockerignore
-Dockerfile~
-data/                  
-!data/.gitkeep         
+
+# 5. 数据文件（严格对齐文档🔶4-39/4-53：忽略原始数据，跟踪DVC指针）
+data/raw/                # 忽略原始数据目录（禁止提交raw数据，符合🔶4-53）
+!data/raw.dvc            # 放行DVC指针文件（需Git跟踪数据版本，符合🔶4-39）
+!data/.gitkeep           # 放行目录占位文件（若需保留空data目录，文档无禁止）
+.dvc/cache/              # 忽略DVC本地缓存（仅远程存储数据，符合🔶4-45）
+
+# 6. Docker相关（修正原错误：保留.dockerignore，符合文档🔶4-12）
+Dockerfile~              # 忽略Dockerfile临时文件（如编辑备份）
+# 移除原“.dockerignore”忽略规则！文档🔶4-12要求“配置.dockerignore排除冗余文件”，需Git跟踪该配置

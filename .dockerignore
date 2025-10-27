@@ -1,0 +1,21 @@
+# 1. 开发环境文件（避免进镜像）
+venv/
+__pycache__/
+*.pyc
+.idea/
+.vscode/
+
+# 2. 数据相关（仅保留DVC指针，原始数据不进镜像，符合🔶4-39/4-53）
+data/raw/
+!data/raw.dvc
+.dvc/cache/
+
+# 3. MLflow日志（本地实验记录，不进镜像，符合🔶4-57）
+mlruns/
+
+# 4. 敏感文件（环境变量不进镜像，用Secrets生成，符合🔶4-28/4-29）
+.env
+
+# 5. 临时文件（避免冗余）
+Dockerfile~
+*.log

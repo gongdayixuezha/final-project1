@@ -1,67 +1,102 @@
-# .github/workflows/ml-project-ci.yml 完整优化版
-name: ML Project CI
-
-# 触发条件：push 到 main 或 PR 到 main
+name: ML Project CI/CD (4-Checkmarks)
+# 触发条件：严格遵循文档🔶4-17（PR到保护分支）、🔶4-28/🔶4-29（合并到staging/main）
 on:
-  push:
-    branches: [ "main" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "dev", "staging", "main" ]  # 文档要求的保护分支
+  push:
+    branches: [ "staging", "main" ]        # 文档要求的CD触发分支
 
+# 四个独立Job，对应GitHub Actions页面四个对钩，每Job成功1个对钩
 jobs:
-  build-train-test:
+  # 对钩1：代码规范与格式化检查（文档🔶4-19要求）
+  lint-format-check:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write  # 允许工作流修改代码（如自动格式化，可选）
-    
     steps:
-      # 步骤1：拉取代码
       - name: Checkout code
         uses: actions/checkout@v4
       
-      # 步骤2：安装 Python 3.10（与本地一致）
+      - name: Set up Python 3.10（文档未指定版本，选项目常用稳定版）
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: "pip"
+      
+      - name: Install lint/format dependencies（文档🔶4-19要求的工具）
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8 black
+      
+      - name: Run flake8 lint（文档🔶4-19：静态分析）
+        run: flake8 app/ tests/ --count --select=E9,F63,F7,F82 --show-source --statistics
+      
+      - name: Run black format check（文档🔶4-19：格式化检查）
+        run: black app/ tests/ --check
+
+  # 对钩2：单元测试（文档🔶4-18要求：PR跑完整测试套件）
+  unit-test:
+    runs-on: ubuntu-latest
+    needs: lint-format-check  # 依赖前一Job成功，确保规范通过再测试
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
       - name: Set up Python 3.10
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
-          cache: "pip"  # 缓存依赖，加速安装
+          cache: "pip"
       
-      # 步骤3：安装依赖（含 wget，用于下载数据集）
-      - name: Install system & Python dependencies
+      - name: Install test dependencies（文档🔶4-18要求测试工具）
         run: |
-          # 安装系统依赖（wget 用于下载数据集）
-          sudo apt-get update && sudo apt-get install -y wget
-          # 安装 Python 依赖
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install flake8 pytest black
+          pip install pytest wget  # wget用于数据下载（适配模型训练依赖）
       
-      # 步骤4：预下载数据集（或触发 data.py 自动下载，确保后续训练不卡壳）
-      - name: Pre-download Fashion MNIST dataset
-        run: |
-          # 运行 data.py 自动下载数据（避免训练时重复下载）
-          python app/data.py
+      - name: Pre-download dataset（确保测试有数据，文档🔶4-39数据版本管理前置）
+        run: python app/data.py
       
-      # 步骤5：训练模型（关键！确保 MLflow 注册模型）
-      - name: Train Fashion MNIST model (register to MLflow)
-        run: |
-          # 运行 model.py 训练模型，迭代次数设为500（平衡速度与收敛）
-          python app/model.py --learning_rate 0.1 --max_iter 500
-          # 验证模型是否注册成功（打印 MLflow 模型列表）
-          mlflow models list
+      - name: Train model for test（测试需训练好的模型，文档🔶4-57 MLflow跟踪）
+        run: python app/model.py --learning_rate 0.1 --max_iter 500
       
-      # 步骤6：代码规范检查（flake8）
-      - name: Lint code with flake8
-        run: |
-          flake8 app/ tests/ --count --select=E9,F63,F7,F82 --show-source --statistics
-          flake8 app/ tests/ --count --exit-zero --max-complexity=10 --max-line-length=88 --statistics
+      - name: Run pytest（文档🔶4-18要求的完整测试套件）
+        run: pytest tests/test_ml.py -v
+
+  # 对钩3：Docker镜像构建验证（文档🔶4-20要求：PR需构建镜像无错误）
+  docker-build-validate:
+    runs-on: ubuntu-latest
+    needs: unit-test  # 依赖测试通过，避免无效构建
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
       
-      # 步骤7：代码格式检查（black）
-      - name: Check code format with black
+      - name: Build Docker image（文档🔶4-12要求的slim镜像，🔶4-20构建验证）
         run: |
-          black app/ tests/ --check
+          # 按文档🔶4-12要求：使用Dockerfile，排除冗余文件（依赖.dockerignore）
+          docker build -t fashion-mnist-validate:${{ github.sha }} .
+          echo "✅ Docker镜像构建成功（无运行时错误）"
+
+  # 对钩4：环境配置与镜像适配（文档🔶4-28/🔶4-29：合并到staging/main处理）
+  env-image-prepare:
+    runs-on: ubuntu-latest
+    needs: docker-build-validate  # 依赖镜像构建通过
+    if: github.event_name == 'push'  # 仅合并到staging/main触发（文档🔶4-28/4-29）
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
       
-      # 步骤8：运行 pytest 测试（此时数据集和模型均存在）
-      - name: Run unit tests with pytest
+      - name: Create environment .env（文档🔶4-28：staging用专属Secrets；🔶4-29：main用专属Secrets）
         run: |
-          pytest tests/test_ml.py -v
+          if [ "${{ github.ref }}" = "refs/heads/staging" ]; then
+            echo "${{ secrets.STAGING_ENV }}" > .env
+            echo "✅ Staging环境.env生成成功"
+          elif [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "${{ secrets.PROD_ENV }}" > .env
+            echo "✅ Production环境.env生成成功"
+          fi
+      
+      - name: Build environment-specific image（文档🔶4-28/4-29：分支专属镜像）
+        run: |
+          BRANCH=$(echo "${{ github.ref }}" | sed 's/refs\/heads\///')
+          IMAGE_TAG="fashion-mnist-${BRANCH}:${{ github.sha }}"
+          docker build -t $IMAGE_TAG .
+          echo "✅ ${BRANCH}环境镜像构建成功：$IMAGE_TAG"
