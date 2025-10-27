@@ -1,0 +1,18 @@
+# 1. 虚拟环境
+venv/
+# 2. MLflow实验记录（本地mlruns/目录，远程无需上传）
+mlruns/
+# 3. 敏感文件（对应文档）
+.env
+# 4. Python编译缓存
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+# 5. ML数据文件（若本地存储大数据集，如iris.csv，无需上传）
+data/
+# 6. Docker构建缓存
+.dockerignore
+Dockerfile~
+data/                  
+!data/.gitkeep         

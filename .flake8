@@ -1,0 +1,6 @@
+[flake8]
+max-line-length = 88  
+extend-ignore = E731   
+exclude = venv/,mlruns/  
+select = E9,F63,F7,F82,W293
+ignore = E203
