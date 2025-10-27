@@ -11,7 +11,9 @@ from dotenv import load_dotenv
 # 计算项目根目录：从当前脚本（app/data.py）向上两级 → 项目根目录（如 /home/runner/work/final-project1/final-project1）
 current_script_path = os.path.abspath(__file__)
 app_dir = os.path.dirname(current_script_path)  # 上级目录：app/
-project_root = os.path.dirname(app_dir)         # 再上级目录：项目根目录（符合文档4-78的根目录结构）
+project_root = os.path.dirname(
+    app_dir
+)  # 再上级目录：项目根目录（符合文档4-78的根目录结构）
 
 # 将项目根目录加入Python搜索路径（确保能识别app模块，避免ModuleNotFoundError，符合文档4-20自动化无错误要求）
 if project_root not in sys.path:
@@ -20,6 +22,7 @@ if project_root not in sys.path:
 
 # 现在可正常导入app模块（文档4-78要求：app/utils.py为工具类文件，属于app模块）
 from app.utils import add_project_root_to_path
+
 add_project_root_to_path()  # 冗余保障，符合文档对模块加载稳定性的隐含要求
 
 # ===================== 第二步：数据集配置（对齐文档4-39、4-46数据版本控制要求）=====================
@@ -67,7 +70,9 @@ def download_fashion_mnist(data_root: str = None) -> None:
             except Exception as e:
                 # 下载失败但本地有旧文件时，尝试继续使用（避免CI中断，符合文档4-20自动化稳定性要求）
                 if os.path.exists(save_path) and os.path.getsize(save_path) > 0:
-                    print(f"\n⚠️ 下载失败，但检测到本地已有 {filename}（可能不完整），尝试继续使用...")
+                    print(
+                        f"\n⚠️ 下载失败，但检测到本地已有 {filename}（可能不完整），尝试继续使用..."
+                    )
                 else:
                     raise RuntimeError(
                         f"❌ 下载 {filename} 失败，且本地无可用文件！\n"
@@ -76,7 +81,9 @@ def download_fashion_mnist(data_root: str = None) -> None:
 
     # 所有文件存在时跳过下载（符合文档4-41“数据版本可复用”，避免冗余操作）
     if all_files_exist:
-        print(f"✅ 所有数据集文件已存在（{data_root_abs}），跳过下载（符合文档4-39数据版本控制要求）")
+        print(
+            f"✅ 所有数据集文件已存在（{data_root_abs}），跳过下载（符合文档4-39数据版本控制要求）"
+        )
 
 
 def load_idx_file(file_path: str) -> np.ndarray:
@@ -93,11 +100,15 @@ def load_idx_file(file_path: str) -> np.ndarray:
         magic_number, num_items = struct.unpack(">II", f.read(8))
         if magic_number == 2051:  # 图像文件（28x28=784特征，符合Fashion MNIST规格）
             rows, cols = struct.unpack(">II", f.read(8))
-            data = np.frombuffer(f.read(), dtype=np.uint8).reshape(num_items, rows * cols)
+            data = np.frombuffer(f.read(), dtype=np.uint8).reshape(
+                num_items, rows * cols
+            )
         elif magic_number == 2049:  # 标签文件（10分类，符合文档4-5任务要求）
             data = np.frombuffer(f.read(), dtype=np.uint8)
         else:
-            raise ValueError(f"❌ 不支持的文件格式（魔法数：{magic_number}），需为Fashion MNIST idx文件（符合文档4-39数据规范）")
+            raise ValueError(
+                f"❌ 不支持的文件格式（魔法数：{magic_number}），需为Fashion MNIST idx文件（符合文档4-39数据规范）"
+            )
     return data
 
 
@@ -157,6 +168,10 @@ def load_local_fashion_mnist(scale_data: bool = True) -> tuple:
 if __name__ == "__main__":
     try:
         load_local_fashion_mnist()
-        print("\n✅ 数据集验证成功（符合文档4-39数据版本控制与4-5模型训练前置要求），可用于模型训练")
+        print(
+            "\n✅ 数据集验证成功（符合文档4-39数据版本控制与4-5模型训练前置要求），可用于模型训练"
+        )
     except Exception as e:
-        print(f"\n❌ 数据集处理失败：{str(e)}（请参考错误提示修复，确保符合文档数据规范）")
+        print(
+            f"\n❌ 数据集处理失败：{str(e)}（请参考错误提示修复，确保符合文档数据规范）"
+        )
